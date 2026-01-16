@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>直接重定向页面</title>
+</head>
+<body>
+    <p>摸鱼爱你。。。</p>
+
+    <script>
+        // 内置CSV路径
+        const CSV_PATH = 'fulitu_images.csv';
+        
+        // 存储解析后的数据
+        let imageData = [];
+        
+        // 解析CSV数据
+        function parseCSV(csvText) {
+            const lines = csvText.split(/\r?\n/);
+            const result = [];
+            
+            // 跳过标题行
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line) {
+                    // 处理CSV中的引号和逗号
+                    const values = parseCSVLine(line);
+                    if (values.length >= 2) {
+                        const name = values[0];
+                        const urls = values.slice(1).filter(url => url && url.startsWith('http'));
+                        if (name && urls.length > 0) {
+                            result.push({ name, urls });
+                        }
+                    }
+                }
+            }
+            
+            return result;
+        }
+        
+        // 辅助函数：解析单行CSV（处理引号包围的值）
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+                        // 双引号表示一个实际的引号字符
+                        current += '"';
+                        i++; // 跳过下一个引号
+                    } else {
+                        // 切换引号状态
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    // 在非引号内的逗号是字段分隔符
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            
+            // 添加最后一个字段
+            result.push(current.trim());
+            return result;
+        }
+        
+        // 获取URL参数
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+        
+        // 随机跳转到一个图片链接
+        function randomRedirect() {
+            if (imageData.length === 0) {
+                console.error("没有加载到任何图片数据");
+                document.body.innerHTML = "<p>错误：没有加载到任何图片数据，请确保页面通过HTTP服务器访问。</p>";
+                return;
+            }
+            
+            // 找到所有可能的图片URL
+            const allImages = [];
+            imageData.forEach(item => {
+                item.urls.forEach(url => {
+                    allImages.push({ name: item.name, url });
+                });
+            });
+            
+            if (allImages.length === 0) {
+                console.error("没有找到有效的图片链接");
+                document.body.innerHTML = "<p>错误：没有找到有效的图片链接</p>";
+                return;
+            }
+            
+            // 随机选择一个图片
+            const randomIndex = Math.floor(Math.random() * allImages.length);
+            const selectedImage = allImages[randomIndex];
+            
+            console.log(`随机选择了: ${selectedImage.name}, 链接: ${selectedImage.url}`);
+            
+            // 执行重定向
+            window.location.replace(selectedImage.url);
+        }
+        
+        // 根据关键词搜索并跳转
+        function searchAndRedirect(keyword) {
+            if (!keyword) {
+                randomRedirect();  // 如果没有关键词则随机跳转
+                return;
+            }
+            
+            if (imageData.length === 0) {
+                console.error("没有加载到任何图片数据");
+                document.body.innerHTML = "<p>错误：没有加载到任何图片数据，请确保页面通过HTTP服务器访问。</p>";
+                return;
+            }
+            
+            // 过滤匹配关键词的项目
+            const matches = imageData.filter(item => 
+                item.name.toLowerCase().includes(keyword.toLowerCase())
+            );
+            
+            if (matches.length === 0) {
+                console.error(`未找到包含 "${keyword}" 的图片`);
+                document.body.innerHTML = `<p>错误：未找到包含 "${keyword}" 的图片</p>`;
+                return;
+            }
+            
+            // 从匹配项中收集所有图片URL
+            const matchedImages = [];
+            matches.forEach(item => {
+                item.urls.forEach(url => {
+                    matchedImages.push({ name: item.name, url });
+                });
+            });
+            
+            if (matchedImages.length === 0) {
+                console.error(`匹配到 ${matches.length} 个项目，但没有可用的图片链接`);
+                document.body.innerHTML = `<p>错误：匹配到 ${matches.length} 个项目，但没有可用的图片链接</p>`;
+                return;
+            }
+            
+            // 随机选择一个匹配的图片
+            const randomIndex = Math.floor(Math.random() * matchedImages.length);
+            const selectedImage = matchedImages[randomIndex];
+            
+            console.log(`根据关键词"${keyword}"找到了: ${selectedImage.name}, 链接: ${selectedImage.url}`);
+            
+            // 执行重定向
+            window.location.replace(selectedImage.url);
+        }
+        
+        // 尝试加载CSV数据
+        fetch(CSV_PATH)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(data => {
+                imageData = parseCSV(data);
+                console.log(`成功加载 ${imageData.length} 条记录`);
+                
+                // 检查URL参数，决定是随机跳转还是搜索跳转
+                const keyword = getUrlParameter('keyword');
+                
+                if (keyword) {
+                    searchAndRedirect(decodeURIComponent(keyword));
+                } else {
+                    randomRedirect();
+                }
+            })
+            .catch(error => {
+                console.error('加载CSV文件失败:', error);
+                document.body.innerHTML = `
+                    <p>错误：无法加载CSV文件。请确保：</p>
+                    <ul>
+                        <li>此页面通过HTTP服务器提供服务（例如使用 "python -m http.server"）</li>
+                        <li>fulitu_images.csv 文件存在于同一目录下</li>
+                        <li>文件名正确且服务器配置允许访问该文件</li>
+                    </ul>
+                    <p>错误详情: ${error.message}</p>
+                `;
+            });
+    </script>
+</body>
+</html>
