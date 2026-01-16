@@ -3,10 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>直接重定向页面</title>
+    <title>简单重定向页面</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 200px; }
+        .loading { font-size: 18px; color: #666; }
+    </style>
 </head>
 <body>
-    <p>摸鱼爱你。。。</p>
+    <div class="loading">正在跳转...</div>
 
     <script>
         // 内置CSV路径
@@ -71,21 +75,15 @@
             return result;
         }
         
-        // 获取URL参数
-        function getUrlParameter(name) {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(name);
-        }
-        
-        // 随机跳转到一个图片链接
-        function randomRedirect() {
+        // 直接跳转到随机图片
+        function directRedirect() {
             if (imageData.length === 0) {
                 console.error("没有加载到任何图片数据");
-                document.body.innerHTML = "<p>错误：没有加载到任何图片数据，请确保页面通过HTTP服务器访问。</p>";
+                document.querySelector('.loading').innerHTML = "<p>错误：没有加载到任何图片数据，请确保页面通过HTTP服务器访问。</p>";
                 return;
             }
             
-            // 找到所有可能的图片URL
+            // 收集所有图片URL
             const allImages = [];
             imageData.forEach(item => {
                 item.urls.forEach(url => {
@@ -95,7 +93,7 @@
             
             if (allImages.length === 0) {
                 console.error("没有找到有效的图片链接");
-                document.body.innerHTML = "<p>错误：没有找到有效的图片链接</p>";
+                document.querySelector('.loading').innerHTML = "<p>错误：没有找到有效的图片链接</p>";
                 return;
             }
             
@@ -105,59 +103,11 @@
             
             console.log(`随机选择了: ${selectedImage.name}, 链接: ${selectedImage.url}`);
             
-            // 执行重定向
+            // 立即执行重定向
             window.location.replace(selectedImage.url);
         }
-        
-        // 根据关键词搜索并跳转
-        function searchAndRedirect(keyword) {
-            if (!keyword) {
-                randomRedirect();  // 如果没有关键词则随机跳转
-                return;
-            }
-            
-            if (imageData.length === 0) {
-                console.error("没有加载到任何图片数据");
-                document.body.innerHTML = "<p>错误：没有加载到任何图片数据，请确保页面通过HTTP服务器访问。</p>";
-                return;
-            }
-            
-            // 过滤匹配关键词的项目
-            const matches = imageData.filter(item => 
-                item.name.toLowerCase().includes(keyword.toLowerCase())
-            );
-            
-            if (matches.length === 0) {
-                console.error(`未找到包含 "${keyword}" 的图片`);
-                document.body.innerHTML = `<p>错误：未找到包含 "${keyword}" 的图片</p>`;
-                return;
-            }
-            
-            // 从匹配项中收集所有图片URL
-            const matchedImages = [];
-            matches.forEach(item => {
-                item.urls.forEach(url => {
-                    matchedImages.push({ name: item.name, url });
-                });
-            });
-            
-            if (matchedImages.length === 0) {
-                console.error(`匹配到 ${matches.length} 个项目，但没有可用的图片链接`);
-                document.body.innerHTML = `<p>错误：匹配到 ${matches.length} 个项目，但没有可用的图片链接</p>`;
-                return;
-            }
-            
-            // 随机选择一个匹配的图片
-            const randomIndex = Math.floor(Math.random() * matchedImages.length);
-            const selectedImage = matchedImages[randomIndex];
-            
-            console.log(`根据关键词"${keyword}"找到了: ${selectedImage.name}, 链接: ${selectedImage.url}`);
-            
-            // 执行重定向
-            window.location.replace(selectedImage.url);
-        }
-        
-        // 尝试加载CSV数据
+
+        // 加载CSV数据并立即重定向
         fetch(CSV_PATH)
             .then(response => {
                 if (!response.ok) {
@@ -169,18 +119,12 @@
                 imageData = parseCSV(data);
                 console.log(`成功加载 ${imageData.length} 条记录`);
                 
-                // 检查URL参数，决定是随机跳转还是搜索跳转
-                const keyword = getUrlParameter('keyword');
-                
-                if (keyword) {
-                    searchAndRedirect(decodeURIComponent(keyword));
-                } else {
-                    randomRedirect();
-                }
+                // 立即重定向，不等待用户操作
+                directRedirect();
             })
             .catch(error => {
                 console.error('加载CSV文件失败:', error);
-                document.body.innerHTML = `
+                document.querySelector('.loading').innerHTML = `
                     <p>错误：无法加载CSV文件。请确保：</p>
                     <ul>
                         <li>此页面通过HTTP服务器提供服务（例如使用 "python -m http.server"）</li>
